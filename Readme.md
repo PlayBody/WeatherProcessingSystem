@@ -68,6 +68,12 @@ cd C:/kafka_2.13-3.9.0
 ./bin/windows/kafka-server-start.bat ./config/server.properties
 ```
 
+> Install MongoDB
+
+Download and install from https://www.mongodb.com/try/download/community-kubernetes-operator
+
+To verify mongodb data in GUI mode download mongodb compass from https://www.mongodb.com/try/download/compass
+
 # Project configuration
 
 ### Config kafka
@@ -75,6 +81,7 @@ cd C:/kafka_2.13-3.9.0
 Create Kafka topic
 ```bash
 ./bin/windows/kafka-topics.bat --create --topic raw-weather-reports --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
+./bin/windows/kafka-topics.bat --create --topic transformed-weather-data --bootstrap-server localhost:9092 --partitions 1 --replication-factor 1
 ```
 
 Verify the topic creation
@@ -82,18 +89,23 @@ Verify the topic creation
 ./bin/windows/kafka-topics.bat --list --bootstrap-server localhost:9092
 ```
 
-Test producer and sonsumer
-```bash
-./bin/windows/kafka-console-producer.bat --topic raw-weather-reports --bootstrap-server localhost:9092
-```
-```bash
-./bin/windows/kafka-console-consumer.bat --topic raw-weather-reports --from-beginning --bootstrap-server localhost:9092
-```
-
-Python
+Python Data collection service
 
 ```bash
-pip install flask confluent-kafka requests schedule
+cd weather-collection-service
+pip install -r requirements.txt
 ```
 
-Node
+Go ETL service
+
+```bash
+cd weather-etl-service
+npm mod tidy
+```
+
+Node API service
+
+```bash
+cd weather-report-service
+npm install
+```
