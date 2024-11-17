@@ -233,6 +233,20 @@ The Node.js API service provides endpoints to query the storm data stored in Mon
 curl "http://localhost:5000/start"
 ```
 
+
+### View Frontend
+
+- **Port**: `3000`
+- **Endpoint**: `/metrics`
+- **Method**: GET
+
+#### Example Request
+
+```bash
+curl "http://localhost:3000/metrics"
+```
+![View](./res/image4.png)
+
 ### Query Storm Reports
 
 - **Port**: `3000`
@@ -246,3 +260,17 @@ curl "http://localhost:5000/start"
 
 ```bash
 curl "http://localhost:3000/api/reports?date=11/11/24&location=Rockaway Beach"
+```
+
+### Query Metrics
+
+- **Port**: `3000`
+- **Endpoint**: `/metrics`
+- **Method**: GET
+
+#### Example Request
+
+```bash
+curl "http://localhost:3000/metrics"
+```
+![Metrics](./res/image5.png)

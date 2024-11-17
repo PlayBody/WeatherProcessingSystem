@@ -1,9 +1,11 @@
 import express from "express";
-import { KafkaClient, Consumer } from "kafka-node";
 import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import config from "config";
-import StormReport from "./models/StormReport.js";
+import logger from "./services/logger.js";
+import "./services/kafkaConsumer.js"; // Initialize Kafka consumer
+import reportsRouter from "./routes/reports.js";
+import { registerMetrics, metricsMiddleware } from "./metrics.js";
 
 const app = express();
 app.use(bodyParser.json());
@@ -17,73 +19,29 @@ mongoose.connect(
   }
 );
 const db = mongoose.connection;
-db.on("error", console.error.bind(console, "MongoDB connection error:"));
+db.on("error", (error) => logger.error(`MongoDB connection error: ${error}`));
 
-const kafkaConfig = config.get("kafka") || {
-  host: "localhost:9092",
-  transformedTopic: "transformed-weather-data",
-};
+// Middleware for logging and metrics
+app.use((req, res, next) => {
+  logger.info(`Incoming request: ${req.method} ${req.url}`);
+  next();
+});
+app.use(metricsMiddleware);
 
-// Function to create a Kafka consumer, allowing for dependency injection
-export function createConsumer(kafkaClient) {
-  const consumer = new Consumer(
-    kafkaClient,
-    [{ topic: kafkaConfig.transformedTopic, partition: 0 }],
-    { autoCommit: true }
-  );
+// Serve static files
+app.use(express.static("public"));
 
-  consumer.on("message", async (message) => {
-    try {
-      const report = JSON.parse(message.value);
+// Use routes
+app.use("/api/reports", reportsRouter);
 
-      const stormReport = new StormReport({
-        time: report.Time || "",
-        f_scale: report.F_Scale || "",
-        speed: report.Speed || "",
-        size: report.Size || "",
-        location: report.Location || "",
-        county: report.County || "",
-        state: report.State || "",
-        lat: parseFloat(report.Lat) || 0,
-        lon: parseFloat(report.Lon) || 0,
-        comments: report.Comments || "",
-      });
-
-      await stormReport.save();
-      console.log("Data saved to MongoDB:", stormReport);
-    } catch (err) {
-      console.error("Error processing message:", err);
-    }
-  });
-
-  return consumer;
-}
-
-const kafkaClient = new KafkaClient({
-  kafkaHost: kafkaConfig.host || "localhost:9092",
+// Metrics endpoint
+app.get("/metrics", async (req, res) => {
+  res.set("Content-Type", registerMetrics.contentType);
+  res.end(await registerMetrics.metrics());
 });
 
-createConsumer(kafkaClient);
-
-// API Endpoint to query storm data
-app.get("/api/reports", async (req, res) => {
-  try {
-    const { date, location } = req.query;
-    const query = {};
-    if (date) query.time = new RegExp(date, "i");
-    if (location) query.location = new RegExp(location, "i");
-
-    const reports = await StormReport.find(query);
-    res.json(reports);
-  } catch (err) {
-    res.status(500).send("Error querying reports");
-  }
-});
-
-// Start the Express server
+// Start the server
 const PORT = config.get("port") || 3000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  logger.info(`Server is running on port ${PORT}`);
 });
-
-export default app;
