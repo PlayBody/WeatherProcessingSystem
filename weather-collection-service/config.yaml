@@ -1,0 +1,8 @@
+test:
+  flag: True
+  csv: 'F:/Dev/assessment/WeatherProcessingSystem/today.csv'
+kafka:
+  boot: 'localhost:9092'
+  topic: 'raw-weather-reports'
+app:
+  port: 5000

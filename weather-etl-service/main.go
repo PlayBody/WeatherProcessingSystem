@@ -11,13 +11,23 @@ import (
 	"syscall"
 
 	"github.com/IBM/sarama"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
+	"gopkg.in/yaml.v2"
 )
 
-const (
-	kafkaBroker      = "localhost:9092"
-	rawTopic         = "raw-weather-reports"
-	transformedTopic = "transformed-weather-data"
-)
+var config Config
+
+type KafkaConfig struct {
+	Broker           string `yaml:"broker"`
+	RawTopic         string `yaml:"rawTopic"`
+	TransformedTopic string `yaml:"transformedTopic"`
+	ConsumerGroup    string `yaml:"consumerGroup"`
+}
+
+type Config struct {
+	Kafka KafkaConfig `yaml:"kafka"`
+}
 
 type StormReport struct {
 	Time     string  `json:"Time"`
@@ -36,12 +46,25 @@ func main() {
 	// Set up logging
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	// Create a new Sarama consumer group
-	config := sarama.NewConfig()
-	config.Consumer.Return.Errors = true
-	config.Version = sarama.V2_5_0_0
+	// Read the YAML file
+	data, err := os.ReadFile("config.yaml")
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
 
-	consumerGroup, err := sarama.NewConsumerGroup([]string{kafkaBroker}, "weather-etl-group", config)
+	// Unmarshal the YAML data into the struct
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		log.Fatalf("error: %v", err)
+	}
+
+	// Create a new Sarama consumer group
+	saramaConfig := sarama.NewConfig()
+	saramaConfig.Consumer.Return.Errors = true
+	saramaConfig.Version = sarama.V2_5_0_0
+	saramaConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
+
+	consumerGroup, err := sarama.NewConsumerGroup([]string{config.Kafka.Broker}, config.Kafka.ConsumerGroup, saramaConfig)
 	if err != nil {
 		log.Fatalf("Error creating consumer group: %v", err)
 	}
@@ -54,7 +77,7 @@ func main() {
 	// Consume messages in a separate goroutine
 	go func() {
 		for {
-			if err := consumerGroup.Consume(context.Background(), []string{rawTopic}, &consumer{}); err != nil {
+			if err := consumerGroup.Consume(context.Background(), []string{config.Kafka.RawTopic}, &Consumer{}); err != nil {
 				log.Fatalf("Error consuming messages: %v", err)
 			}
 		}
@@ -64,14 +87,24 @@ func main() {
 	log.Println("Terminating: via signal")
 }
 
-type consumer struct{}
+type Consumer struct{}
 
-func (consumer) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
-func (consumer) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
-func (c consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+func (Consumer) Setup(_ sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+func (Consumer) Cleanup(_ sarama.ConsumerGroupSession) error {
+	return nil
+}
+
+func (c Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
+		msg := strings.ReplaceAll(string(message.Value), "\"", "`")
+		msg = strings.ReplaceAll(msg, "'", "\"")
+		msg = strings.ReplaceAll(msg, "`", "'")
+		log.Printf("Message received: %s", msg)
 		var report map[string]string
-		if err := json.Unmarshal(message.Value, &report); err != nil {
+		if err := json.Unmarshal([]byte(msg), &report); err != nil {
 			log.Printf("Error unmarshalling message: %v", err)
 			continue
 		}
@@ -98,8 +131,8 @@ func transform(report map[string]string) StormReport {
 		FScale:   report["F_Scale"],
 		Speed:    report["Speed"],
 		Size:     report["Size"],
-		Location: strings.Title(strings.ToLower(report["Location"])),
-		County:   strings.Title(strings.ToLower(report["County"])),
+		Location: cases.Title(language.English).String(strings.ToLower(report["Location"])),
+		County:   cases.Title(language.English).String(strings.ToLower(report["County"])),
 		State:    strings.ToUpper(report["State"]),
 		Lat:      lat,
 		Lon:      lon,
@@ -117,7 +150,7 @@ func parseFloat(value string) float64 {
 }
 
 func publishTransformedData(report StormReport) error {
-	producer, err := sarama.NewSyncProducer([]string{kafkaBroker}, nil)
+	producer, err := sarama.NewSyncProducer([]string{config.Kafka.Broker}, nil)
 	if err != nil {
 		return err
 	}
@@ -129,7 +162,7 @@ func publishTransformedData(report StormReport) error {
 	}
 
 	msg := &sarama.ProducerMessage{
-		Topic: transformedTopic,
+		Topic: config.Kafka.TransformedTopic,
 		Value: sarama.ByteEncoder(data),
 	}
 

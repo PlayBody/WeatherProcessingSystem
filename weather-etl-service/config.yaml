@@ -1,0 +1,5 @@
+kafka:
+  broker: "localhost:9092"
+  rawTopic: "raw-weather-reports"
+  transformedTopic: "transformed-weather-data"
+  consumerGroup: "weather-etl-group"
