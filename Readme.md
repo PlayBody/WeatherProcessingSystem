@@ -190,6 +190,16 @@ npm start
 
 We can verify all data using http://localhost:3000/api/reports
 
+## Run all services using docker
+```bash
+docker-compose up --build
+```
+
+## Stop all
+```bash
+docker-compose down
+```
+
 ## API Usage
 
 The Node.js API service provides endpoints to query the storm data stored in MongoDB.
