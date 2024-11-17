@@ -14,9 +14,16 @@ db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 // Define a Mongoose schema and model
 const stormReportSchema = new mongoose.Schema({
   time: String,
+  f_scale: String,
+  speed: String,
+  size: String,
   location: String,
-  type: String,
-  // Add more fields as needed
+  county: String,
+  state: String,
+  lat: Number,
+  lon: Number,
+  comments: String,
+  // You can add more fields if necessary
 });
 
 const StormReport = mongoose.model('StormReport', stormReportSchema);
@@ -33,9 +40,23 @@ const consumer = new kafka.Consumer(
 consumer.on('message', async (message) => {
   try {
     const report = JSON.parse(message.value);
-    const stormReport = new StormReport(report);
+
+    // Create a new storm report document
+    const stormReport = new StormReport({
+      time: report.Time || '',
+      f_scale: report.F_Scale || '',
+      speed: report.Speed || '',
+      size: report.Size || '',
+      location: report.Location || '',
+      county: report.County || '',
+      state: report.State || '',
+      lat: parseFloat(report.Lat) || 0,
+      lon: parseFloat(report.Lon) || 0,
+      comments: report.Comments || '',
+    });
+
     await stormReport.save();
-    console.log('Data saved to MongoDB:', report);
+    console.log('Data saved to MongoDB:', stormReport);
   } catch (err) {
     console.error('Error processing message:', err);
   }

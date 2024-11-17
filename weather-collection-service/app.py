@@ -33,7 +33,6 @@ def fetch_and_publish_storm_reports():
         response = requests.get(url)
         response.raise_for_status()
 
-        # Check for empty content
         if not response.content:
             logging.warning('No data fetched from NOAA.')
             return
@@ -44,8 +43,9 @@ def fetch_and_publish_storm_reports():
 
         records_published = 0
         for row in csv_reader:
-            # Ensure required fields are present
-            if 'Time' in row and 'Location' in row and 'Type' in row:
+            # Check if row has expected fields
+            if 'Time' in row and 'Location' in row and 'Comments' in row:
+                # Publish each row to Kafka
                 producer.produce(KAFKA_TOPIC, value=str(row), callback=delivery_report)
                 records_published += 1
             else:
@@ -62,7 +62,6 @@ def fetch_and_publish_storm_reports():
         logging.error(f'Unexpected error: {e}')
 
 def start_scheduler():
-    # Schedule the task every 24 hours
     schedule.every(24).hours.do(fetch_and_publish_storm_reports)
 
     while True:
@@ -75,9 +74,7 @@ def start_service():
     return jsonify({'status': 'Data collection initiated'}), 200
 
 if __name__ == '__main__':
-    # Start the scheduler in a separate thread
     scheduler_thread = Thread(target=start_scheduler)
     scheduler_thread.start()
 
-    # Start Flask app
     app.run(host='0.0.0.0', port=5000)
