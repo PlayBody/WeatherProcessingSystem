@@ -8,21 +8,21 @@ import StormReport from '../models/StormReport.js'; // Adjust the path as necess
 
 describe('Weather Processing System', () => {
   before(async () => {
-    // Connect to a test database
-    await mongoose.connect('mongodb://localhost:27017/weather_test', {
-      useNewUrlParser: true, // This is deprecated but should not cause issues
-      useUnifiedTopology: true, // This is deprecated but should not cause issues
-    });
+    if (mongoose.connection.readyState === 0) {
+      await mongoose.connect('mongodb://localhost:27017/weather_test', {
+        useNewUrlParser: true, // Deprecated but should not cause issues
+        useUnifiedTopology: true, // Deprecated but should not cause issues
+      });
+    }
   });
 
   after(async () => {
-    // Disconnect from the test database
     await mongoose.connection.close();
   });
 
   describe('GET /api/reports', () => {
     beforeEach(async () => {
-      // Seed the database with a test storm report
+      await StormReport.deleteMany({}); // Ensure a clean slate
       await StormReport.create({
         time: '524',
         f_scale: 'UNK',
@@ -36,7 +36,6 @@ describe('Weather Processing System', () => {
     });
 
     afterEach(async () => {
-      // Clean up the database
       await StormReport.deleteMany({});
     });
 
@@ -65,9 +64,8 @@ describe('Weather Processing System', () => {
     let mockKafkaClient;
 
     beforeEach(() => {
-      // Mock Kafka client and consumer
-      mockKafkaClient = sinon.stub(KafkaClient.prototype);
-      kafkaConsumer = sinon.stub(Consumer.prototype);
+      mockKafkaClient = sinon.createStubInstance(KafkaClient);
+      kafkaConsumer = sinon.createStubInstance(Consumer);
     });
 
     afterEach(() => {
@@ -88,8 +86,8 @@ describe('Weather Processing System', () => {
         }),
       };
 
-      const consumer = new Consumer(mockKafkaClient, [], {});
-      consumer.emit('message', message);
+      // Simulate Kafka message processing
+      kafkaConsumer.emit('message', message);
 
       // Allow some time for the async operation
       await new Promise((resolve) => setTimeout(resolve, 100));
