@@ -210,10 +210,11 @@ The Node.js API service provides endpoints to query the storm data stored in Mon
 - **Endpoint**: `/start`
 - **Method**: GET
 
-#### Example Request
+### Example Request
 
 ```bash
 curl "http://localhost:5000/start"
+```
 
 ### Query Storm Reports
 
