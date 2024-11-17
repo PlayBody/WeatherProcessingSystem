@@ -144,7 +144,7 @@ Go ETL service
 
 ```bash
 cd weather-etl-service
-npm mod tidy
+go mod tidy
 ```
 
 Node API service
