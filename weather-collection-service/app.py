@@ -46,6 +46,7 @@ def delivery_report(err, msg):
         logging.info(f'Message delivered to {msg.topic()} [{msg.partition()}]')
 
 def fetch_and_publish_storm_reports():
+    records_published = 0
     try:
         if USE_LOCAL_TEST:
             logging.info('Using local test data...')
@@ -65,8 +66,6 @@ def fetch_and_publish_storm_reports():
         field_map = {}
         for field in csv_reader.fieldnames:
             field_map[field] = field
-
-        records_published = 0
 
         for row in csv_reader:
             # Check if row has expected fields
@@ -98,6 +97,7 @@ def fetch_and_publish_storm_reports():
     finally:
         if USE_LOCAL_TEST:
             csv_file.close()
+    return records_published
 
 def start_scheduler():
     schedule.every(config["app"]["schedule"]).hours.do(fetch_and_publish_storm_reports)

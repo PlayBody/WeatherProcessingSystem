@@ -166,6 +166,13 @@ Python Data collection service
 cd weather-collection-service
 python app.py
 ```
+
+Test
+```bash
+python -m unittest test_app.py
+```
+
+
 The default service will be hosted on 5000 port
     
 Get manually csv data using this api http://localhost:5000/start
