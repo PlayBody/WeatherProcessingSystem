@@ -19,6 +19,10 @@ KAFKA_TOPIC = 'raw-weather-reports'
 
 producer = Producer({'bootstrap.servers': KAFKA_BOOTSTRAP_SERVERS})
 
+# Toggle for using local test data
+USE_LOCAL_TEST = True
+LOCAL_FILE_PATH = './../today.csv'
+
 def delivery_report(err, msg):
     """Called once for each message produced to indicate delivery result."""
     if err is not None:
@@ -27,19 +31,21 @@ def delivery_report(err, msg):
         logging.info(f'Message delivered to {msg.topic()} [{msg.partition()}]')
 
 def fetch_and_publish_storm_reports():
-    url = 'https://www.spc.noaa.gov/climo/reports/today.csv'
     try:
-        logging.info('Fetching data from NOAA...')
-        response = requests.get(url)
-        response.raise_for_status()
-
-        if not response.content:
-            logging.warning('No data fetched from NOAA.')
-            return
+        if USE_LOCAL_TEST:
+            logging.info('Using local test data...')
+            with open(LOCAL_FILE_PATH, 'r') as csvfile:
+                csv_data = csvfile.read()
+        else:
+            logging.info('Fetching data from NOAA...')
+            url = 'https://www.spc.noaa.gov/climo/reports/today.csv'
+            response = requests.get(url)
+            response.raise_for_status()
+            csv_data = response.text
 
         # Parse CSV data
-        csv_file = io.StringIO(response.text)
-        csv_reader = csv.DictReader(csv_file)
+        csv_file = io.StringIO(csv_data)
+        csv_reader = csv.DictReader(csv_file, delimiter='\t')
 
         records_published = 0
         for row in csv_reader:

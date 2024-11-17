@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -19,10 +20,16 @@ const (
 )
 
 type StormReport struct {
-	Time     string `json:"Time"`
-	Location string `json:"Location"`
-	Type     string `json:"Type"`
-	// Add more fields as needed
+	Time     string  `json:"Time"`
+	FScale   string  `json:"F_Scale,omitempty"`
+	Speed    string  `json:"Speed,omitempty"`
+	Size     string  `json:"Size,omitempty"`
+	Location string  `json:"Location"`
+	County   string  `json:"County"`
+	State    string  `json:"State"`
+	Lat      float64 `json:"Lat"`
+	Lon      float64 `json:"Lon"`
+	Comments string  `json:"Comments"`
 }
 
 func main() {
@@ -63,7 +70,7 @@ func (consumer) Setup(_ sarama.ConsumerGroupSession) error   { return nil }
 func (consumer) Cleanup(_ sarama.ConsumerGroupSession) error { return nil }
 func (c consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
 	for message := range claim.Messages() {
-		var report StormReport
+		var report map[string]string
 		if err := json.Unmarshal(message.Value, &report); err != nil {
 			log.Printf("Error unmarshalling message: %v", err)
 			continue
@@ -82,11 +89,31 @@ func (c consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama
 	return nil
 }
 
-func transform(report StormReport) StormReport {
-	// Example ETL operation: Convert time to a different format, standardize location, etc.
-	report.Time = strings.ToUpper(report.Time) // Example transformation
-	report.Location = strings.Title(strings.ToLower(report.Location))
-	return report
+func transform(report map[string]string) StormReport {
+	lat := parseFloat(report["Lat"])
+	lon := parseFloat(report["Lon"])
+
+	return StormReport{
+		Time:     report["Time"],
+		FScale:   report["F_Scale"],
+		Speed:    report["Speed"],
+		Size:     report["Size"],
+		Location: strings.Title(strings.ToLower(report["Location"])),
+		County:   strings.Title(strings.ToLower(report["County"])),
+		State:    strings.ToUpper(report["State"]),
+		Lat:      lat,
+		Lon:      lon,
+		Comments: report["Comments"],
+	}
+}
+
+func parseFloat(value string) float64 {
+	parsedValue, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		log.Printf("Error parsing float: %v", err)
+		return 0.0
+	}
+	return parsedValue
 }
 
 func publishTransformedData(report StormReport) error {
@@ -106,7 +133,6 @@ func publishTransformedData(report StormReport) error {
 		Value: sarama.ByteEncoder(data),
 	}
 
-	// Send the message to the transformed topic
 	_, _, err = producer.SendMessage(msg)
 	if err != nil {
 		return err
