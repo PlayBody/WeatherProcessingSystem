@@ -3,7 +3,7 @@ import { KafkaClient, Consumer } from "kafka-node";
 import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import config from "config";
-import StormReport from "./models/StormReport.js"; // Ensure the file extension is included
+import StormReport from "./models/StormReport.js";
 
 const app = express();
 app.use(bodyParser.json());
@@ -24,41 +24,46 @@ const kafkaConfig = config.get("kafka") || {
   transformedTopic: "transformed-weather-data",
 };
 
-// Kafka Configuration
+// Function to create a Kafka consumer, allowing for dependency injection
+export function createConsumer(kafkaClient) {
+  const consumer = new Consumer(
+    kafkaClient,
+    [{ topic: kafkaConfig.transformedTopic, partition: 0 }],
+    { autoCommit: true }
+  );
+
+  consumer.on("message", async (message) => {
+    try {
+      const report = JSON.parse(message.value);
+
+      const stormReport = new StormReport({
+        time: report.Time || "",
+        f_scale: report.F_Scale || "",
+        speed: report.Speed || "",
+        size: report.Size || "",
+        location: report.Location || "",
+        county: report.County || "",
+        state: report.State || "",
+        lat: parseFloat(report.Lat) || 0,
+        lon: parseFloat(report.Lon) || 0,
+        comments: report.Comments || "",
+      });
+
+      await stormReport.save();
+      console.log("Data saved to MongoDB:", stormReport);
+    } catch (err) {
+      console.error("Error processing message:", err);
+    }
+  });
+
+  return consumer;
+}
+
 const kafkaClient = new KafkaClient({
   kafkaHost: kafkaConfig.host || "localhost:9092",
 });
-const consumer = new Consumer(
-  kafkaClient,
-  [{ topic: kafkaConfig.transformedTopic, partition: 0 }],
-  { autoCommit: true }
-);
 
-// Consume messages from Kafka
-consumer.on("message", async (message) => {
-  try {
-    const report = JSON.parse(message.value);
-
-    // Create a new storm report document
-    const stormReport = new StormReport({
-      time: report.Time || "",
-      f_scale: report.F_Scale || "",
-      speed: report.Speed || "",
-      size: report.Size || "",
-      location: report.Location || "",
-      county: report.County || "",
-      state: report.State || "",
-      lat: parseFloat(report.Lat) || 0,
-      lon: parseFloat(report.Lon) || 0,
-      comments: report.Comments || "",
-    });
-
-    await stormReport.save();
-    console.log("Data saved to MongoDB:", stormReport);
-  } catch (err) {
-    console.error("Error processing message:", err);
-  }
-});
+createConsumer(kafkaClient);
 
 // API Endpoint to query storm data
 app.get("/api/reports", async (req, res) => {
