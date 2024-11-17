@@ -112,8 +112,14 @@ func (c Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama
 		// Perform ETL operations
 		transformedReport := transform(report)
 
+		producer, err := sarama.NewSyncProducer([]string{config.Kafka.Broker}, nil)
+		if err != nil {
+			log.Printf("Error new sync producer: %v", err)
+			continue
+		}
+
 		// Publish the transformed data
-		if err := publishTransformedData(transformedReport); err != nil {
+		if err := publishTransformedData(producer, transformedReport); err != nil {
 			log.Printf("Error publishing transformed data: %v", err)
 		}
 
@@ -149,13 +155,8 @@ func parseFloat(value string) float64 {
 	return parsedValue
 }
 
-func publishTransformedData(report StormReport) error {
-	producer, err := sarama.NewSyncProducer([]string{config.Kafka.Broker}, nil)
-	if err != nil {
-		return err
-	}
+func publishTransformedData(producer sarama.SyncProducer, report StormReport) error {
 	defer producer.Close()
-
 	data, err := json.Marshal(report)
 	if err != nil {
 		return err

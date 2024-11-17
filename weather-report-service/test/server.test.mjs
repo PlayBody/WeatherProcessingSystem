@@ -71,7 +71,8 @@ describe("Weather Processing System", () => {
       });
     });
   
-    afterEach(() => {
+    afterEach(async () => {
+      await StormReport.deleteMany({});
       sinon.restore();
     });
 

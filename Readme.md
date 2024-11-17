@@ -179,6 +179,11 @@ cd weather-etl-service
 go run main.go
 ```
 
+Test
+```bash
+go test -v
+```
+
 Node API service
 
 > The service will be hosted on 3000 port
