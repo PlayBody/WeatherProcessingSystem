@@ -6,3 +6,4 @@ kafka:
   topic: 'raw-weather-reports'
 app:
   port: 5000
+  schedule: 24

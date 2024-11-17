@@ -33,7 +33,9 @@
 • Kafka Consumer:
 
     • Consume incoming weather data from the raw-weatherreports topic.
+
 • Data Processing:
+
     • Perform ETL operations to standardize and enrich the storm data.
 
 • Data Publishing:

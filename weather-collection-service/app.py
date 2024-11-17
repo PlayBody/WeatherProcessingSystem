@@ -67,6 +67,7 @@ def fetch_and_publish_storm_reports():
             field_map[field] = field
 
         records_published = 0
+
         for row in csv_reader:
             # Check if row has expected fields
             if 'Time' in row and 'Location' in row and 'Comments' in row:
@@ -94,9 +95,12 @@ def fetch_and_publish_storm_reports():
         logging.error(f'Error fetching data from NOAA: {e}')
     except Exception as e:
         logging.error(f'Unexpected error: {e}')
+    finally:
+        if USE_LOCAL_TEST:
+            csv_file.close()
 
 def start_scheduler():
-    schedule.every(24).hours.do(fetch_and_publish_storm_reports)
+    schedule.every(config["app"]["schedule"]).hours.do(fetch_and_publish_storm_reports)
 
     while True:
         schedule.run_pending()
