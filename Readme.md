@@ -188,6 +188,11 @@ cd weather-report-service
 npm start
 ```
 
+Test
+```bash
+npx mocha test/server.test.js
+```
+
 We can verify all data using http://localhost:3000/api/reports
 
 ## Run all services using docker

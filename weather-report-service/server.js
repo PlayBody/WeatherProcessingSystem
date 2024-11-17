@@ -1,8 +1,9 @@
-const express = require("express");
-const kafka = require("kafka-node");
-const mongoose = require("mongoose");
-const bodyParser = require("body-parser");
-const config = require("config");
+import express from "express";
+import { KafkaClient, Consumer } from "kafka-node";
+import mongoose from "mongoose";
+import bodyParser from "body-parser";
+import config from "config";
+import StormReport from "./models/StormReport.js"; // Ensure the file extension is included
 
 const app = express();
 app.use(bodyParser.json());
@@ -18,33 +19,16 @@ mongoose.connect(
 const db = mongoose.connection;
 db.on("error", console.error.bind(console, "MongoDB connection error:"));
 
-// Define a Mongoose schema and model
-const stormReportSchema = new mongoose.Schema({
-  time: String,
-  f_scale: String,
-  speed: String,
-  size: String,
-  location: String,
-  county: String,
-  state: String,
-  lat: Number,
-  lon: Number,
-  comments: String,
-  // You can add more fields if necessary
-});
-
-const StormReport = mongoose.model("StormReport", stormReportSchema);
-
 const kafkaConfig = config.get("kafka") || {
   host: "localhost:9092",
   transformedTopic: "transformed-weather-data",
 };
 
 // Kafka Configuration
-const kafkaClient = new kafka.KafkaClient({
+const kafkaClient = new KafkaClient({
   kafkaHost: kafkaConfig.host || "localhost:9092",
 });
-const consumer = new kafka.Consumer(
+const consumer = new Consumer(
   kafkaClient,
   [{ topic: kafkaConfig.transformedTopic, partition: 0 }],
   { autoCommit: true }
@@ -96,3 +80,5 @@ const PORT = config.get("port") || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+export default app;
